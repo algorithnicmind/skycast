@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SkyCast — Modern Weather Experience</title>
+  <!-- Favicon (visible next to the page title in the browser tab) -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="shortcut icon" type="image/svg+xml" href="favicon.svg" />
+
+  <!-- Performance: Preconnect to critical third-party origins -->
+  <link rel="preconnect" href="https://api.openweathermap.org" crossorigin>
+  <link rel="dns-prefetch" href="//api.openweathermap.org">
+  <link rel="preconnect" href="https://openweathermap.org" crossorigin>
+  <link rel="dns-prefetch" href="//openweathermap.org">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="dns-prefetch" href="//unpkg.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- OpenStreetMap tiles use subdomains a/b/c -->
+  <link rel="dns-prefetch" href="//a.tile.openstreetmap.org">
+  <link rel="dns-prefetch" href="//b.tile.openstreetmap.org">
+  <link rel="dns-prefetch" href="//c.tile.openstreetmap.org">
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.9.6/lottie.min.js" defer></script>
+
+  <!-- Leaflet (map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js" defer></script>
+
+  <!-- Chart.js (feels-like trend) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+
+  <link rel="stylesheet" href="style.css">
+
+  
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading" class="loading hidden" aria-hidden="true">
+    <div class="loader">
+      <div class="loader-icon">
+        <i class="fas fa-cloud-sun"></i>
+      </div>
+      <p>Loading SkyCast...</p>
+      <div class="loader-bar">
+        <div class="loader-progress"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" class="app">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <i class="fas fa-cloud-sun"></i>
+          <h1>SkyCast</h1>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <h3>Weather</h3>
+          <ul>
+            <li><a href="#current" class="nav-link active" data-section="current">
+              <i class="fas fa-sun"></i>Current
+            </a></li>
+            <li><a href="#hourly" class="nav-link" data-section="hourly">
+              <i class="fas fa-clock"></i>Hourly
+            </a></li>
+            <li><a href="#forecast" class="nav-link" data-section="forecast">
+              <i class="fas fa-calendar-alt"></i>5-Day
+            </a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h3>Tools</h3>
+          <ul>
+            <li><a href="#map" class="nav-link" data-section="map">
+              <i class="fas fa-map"></i>Map
+            </a></li>
+            <li><a href="#charts" class="nav-link" data-section="charts">
+              <i class="fas fa-chart-line"></i>Charts
+            </a></li>
+            <li><a href="#aqi" class="nav-link" data-section="aqi">
+              <i class="fas fa-wind"></i>Air Quality
+            </a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h3>Settings</h3>
+          <ul>
+            <li>
+              <div class="unit-toggle" role="tablist" aria-label="units">
+                <button id="btnC" class="unit active">°C</button>
+                <button id="btnF" class="unit">°F</button>
+              </div>
+            </li>
+            <li>
+              <select id="langSelect" title="Language">
+                <option value="en">🇺🇸 English</option>
+                <option value="hi">🇮🇳 हिन्दी</option>
+              </select>
+            </li>
+            <li>
+              <button id="themeToggle" class="theme-toggle" title="Toggle theme">
+                <i class="fas fa-moon"></i>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <header class="top-bar">
+        <div class="search-container">
+          <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input id="cityInput" type="text" placeholder="Search for a city..." autocomplete="off" />
+            <button id="voiceBtn" class="voice-btn" title="Voice search">
+              <i class="fas fa-microphone"></i>
+            </button>
+          </div>
+          <button id="searchBtn" class="search-btn">
+            <i class="fas fa-search"></i>
+            Search
+          </button>
+          <button id="locBtn" class="location-btn">
+            <i class="fas fa-location-arrow"></i>
+            My Location
+          </button>
+        </div>
+        
+        <!-- API Key Notice -->
+        <div id="apiKeyNotice" class="api-key-notice">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span>⚠️ <strong>Setup Required:</strong> Add your OpenWeatherMap API key to <code>script.js</code> to enable weather data</span>
+          <div class="api-notice-actions">
+            <button onclick="validateAPIKey()" class="api-test-btn">
+              <i class="fas fa-check-circle"></i>
+              Test API Key
+            </button>
+            <a href="https://openweathermap.org/api" target="_blank" class="api-link">
+              <i class="fas fa-external-link-alt"></i>
+              Get API Key
+            </a>
+          </div>
+        </div>
+
+        <div class="user-actions">
+          <button id="shareBtn" class="action-btn" title="Share Weather">
+            <i class="fas fa-share-alt"></i>
+          </button>
+          <button id="saveBtn" class="action-btn" title="Save Snapshot">
+            <i class="fas fa-bookmark"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Sections -->
+      <div class="content-wrapper">
+        <!-- Current Weather Section -->
+        <section id="current" class="content-section active">
+          <div class="weather-hero">
+            <div class="weather-info">
+              <div class="location-info">
+                <h2 id="cityName">—</h2>
+                <p id="localTime" class="time-display">—</p>
+                <p id="condition" class="weather-description">—</p>
+              </div>
+              
+              <div class="temperature-display">
+                <h1 id="temp" class="main-temp">--°</h1>
+                <p id="feels" class="feels-like">Feels like —</p>
+              </div>
+
+              <div class="weather-icon">
+                <div id="lottieContainer" class="lottie-container" aria-hidden="true"></div>
+                <img id="owIcon" class="weather-icon-img" src="" alt="" />
+              </div>
+            </div>
+
+            <div class="weather-details">
+              <div class="detail-card">
+                <i class="fas fa-tint"></i>
+                <div>
+                  <span class="detail-label">Humidity</span>
+                  <span id="humidity" class="detail-value">—</span>
+                </div>
+              </div>
+              <div class="detail-card">
+                <i class="fas fa-wind"></i>
+                <div>
+                  <span class="detail-label">Wind</span>
+                  <span id="wind" class="detail-value">—</span>
+                </div>
+              </div>
+              <div class="detail-card">
+                <i class="fas fa-sun"></i>
+                <div>
+                  <span class="detail-label">Sunrise</span>
+                  <span id="sunrise" class="detail-value">—</span>
+                </div>
+              </div>
+              <div class="detail-card">
+                <i class="fas fa-moon"></i>
+                <div>
+                  <span class="detail-label">Sunset</span>
+                  <span id="sunset" class="detail-value">—</span>
+                </div>
+              </div>
+              <div class="detail-card">
+                <i class="fas fa-leaf"></i>
+                <div>
+                  <span class="detail-label">AQI</span>
+                  <span id="aqi" class="detail-value">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="alertBanner" class="alert-banner hidden" role="alert"></div>
+          
+          <div class="insight-card">
+            <i class="fas fa-lightbulb"></i>
+            <span id="insight" class="insight-text">—</span>
+          </div>
+        </section>
+
+        <!-- Hourly Section -->
+        <section id="hourly" class="content-section">
+          <div class="section-header">
+            <h3>24-Hour Forecast</h3>
+            <p>Hourly weather predictions for the next day</p>
+          </div>
+          <div id="hourly" class="hourly-timeline" aria-live="polite"></div>
+        </section>
+
+        <!-- 5-Day Forecast Section -->
+        <section id="forecast" class="content-section">
+          <div class="section-header">
+            <h3>5-Day Forecast</h3>
+            <p>Extended weather outlook</p>
+          </div>
+          <div id="forecast" class="forecast-grid"></div>
+        </section>
+
+        <!-- Map Section -->
+        <section id="map" class="content-section">
+          <div class="section-header">
+            <h3>Interactive Weather Map</h3>
+            <p>Click on the map to get weather for any location</p>
+          </div>
+          <div id="mapWrap" class="map-container">
+            <div id="map"></div>
+          </div>
+        </section>
+
+        <!-- Charts Section -->
+        <section id="charts" class="content-section">
+          <div class="section-header">
+            <h3>Temperature Trends</h3>
+            <p>24-hour feels-like temperature analysis</p>
+          </div>
+          <div class="chart-container">
+            <canvas id="feelsChart" height="200"></canvas>
+          </div>
+        </section>
+
+        <!-- AQI Section -->
+        <section id="aqi" class="content-section">
+          <div class="section-header">
+            <h3>Air Quality Information</h3>
+            <p>Detailed air quality metrics and health recommendations</p>
+          </div>
+          <div class="aqi-details">
+            <div class="aqi-card">
+              <div class="aqi-header">
+                <i class="fas fa-leaf"></i>
+                <h4>Current AQI</h4>
+              </div>
+              <div id="aqiDisplay" class="aqi-value">—</div>
+              <div id="aqiDescription" class="aqi-description">—</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Search History -->
+      <div id="history" class="search-history"></div>
+    </main>
+  </div>
+  <script src="script.js" defer></script>
+</body>
+</html>
