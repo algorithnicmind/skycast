@@ -1,5 +1,5 @@
 # SkyCast - Modern Weather Experience
-
+to accss the website https://skycastmodern.netlify.app/
 A beautiful, modern weather application with real-time weather data, forecasts, maps, and more.
 
 ## 🚀 Quick Setup
